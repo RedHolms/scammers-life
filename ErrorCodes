@@ -1,0 +1,7 @@
+List of error codes:
+0 - Successful
+1 - Unknown error
+2 - Unhandled error
+3 - Auth info load error
+4 - One of components doesn't exists
+100 - Error while handling an another error
