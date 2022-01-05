@@ -11,7 +11,7 @@ def HandleError(cls, inst, trace):
 	if cls == SystemExit:
 		log.info('Exiting with code ' + str(inst.code) + '...')
 		raise SystemExit(inst.code)
-	elif cls == ImportError:
+	elif cls == ModuleNotFoundError:
 		log.error('One of components doesn\'t installed')
 		log.info('To install all components, run file: \'setup.py\'')
 		log.info('Exiting with code 4...')

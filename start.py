@@ -1,12 +1,12 @@
 import logging
 import sys
 
-import bot
-
 TOKEN = ''
 GROUP_ID = 0
 
 def main():
+	import bot
+
 	log = logging.getLogger('scamLife.start[main]')
 	
 	log.debug('Reading auth info...')
