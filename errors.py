@@ -13,15 +13,15 @@ def HandleError(cls, inst, trace):
 		raise SystemExit(inst.code)
 	elif cls == ModuleNotFoundError:
 		log.error('One of components doesn\'t installed')
+		log.error('Info: ' + str(inst))
 		log.info('To install all components, run file: \'setup.py\'')
 		log.info('Exiting with code 4...')
 		raise SystemExit(4)
 	else:
 		log.error('Unhandled exception!')
 		log.error('Error cls: ' + str(cls))
-		_f_tb = traceback.format_exception(cls, value=inst, tb=trace)
 		f_tb = ''
-		for line in _f_tb:
+		for line in traceback.format_exception(cls, value=inst, tb=trace):
 			f_tb = f_tb + line
 		log.error(f_tb)
 		log.info('Exiting with code 2...')

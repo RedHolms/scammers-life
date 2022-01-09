@@ -113,5 +113,7 @@ class UserState(Enum):
     Idle = 0 # Not defined
     InMenu = 1
     WaitForNickname = 2
-    RegistrationDialog0 = 3 # is you are you? ; if user answer is true, nickname enter
-    RegistrationDialog1 = 4 # if user answer is false, dispatch a user
+    InSettings = 3
+
+class UserFlag(Enum):
+    SnackbarAsked = 1 << 0

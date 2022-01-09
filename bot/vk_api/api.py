@@ -13,7 +13,10 @@ class ApiSession(object):
 		if not 'v' in params: params['v'] = self.v
 		if not 'access_token' in params: params['access_token'] = self.token
 
-		response = self.httpSession.request(requestMode, API_METHOD_URL + methodName, params=params)
+		try:
+			response = self.httpSession.request(requestMode, API_METHOD_URL + methodName, params=params)
+		except requests.exceptions.ConnectionError:
+			return self.executeMethod(methodName, params, requestMode, returnRaw, safeMode)
 
 		if response.status_code not in range(200, 299):
 			raise ConnectionError(response)

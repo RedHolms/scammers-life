@@ -54,7 +54,7 @@ class LongPollServer(object):
 				return self.update()
 			elif json['failed'] in range(2, 3):
 				log.warning('LongPoll info was lost. Updating info...')
-				self.updateLongPollServerInfo(self)
+				self.updateLongPollServerInfo()
 				return self.update()
 			else:
 				log.warning('Unknown longpoll error: <' + str(json['failed'] + '>. Trying connect again...'))
