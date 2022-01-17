@@ -6,6 +6,8 @@ class User(object):
 		
 		self.api = api
 
+		self.game2048 = None
+
 		self.info = {
 			'id': self.id,
 
@@ -20,12 +22,20 @@ class User(object):
 			'userSurname': '',
 
 			'money': 0,
+			'euro': 0,
 			'admin': False,
 
 			'infoInitialized': False,
 
 			'snackbarsInMsg': False,
 			'flags': 0,
+
+			'scam_adName': '',
+			'scam_adDesc': '',
+			'scam_adCreate': '',
+			'scam_adEnd': '',
+
+			'maxScore2048': 0
 		}
 
 		def __setattr__(self, __name: str, __value: Any) -> None:
@@ -44,7 +54,6 @@ class User(object):
 		if __name in self.info: return self.info[__name]
 		else: super().__getattribute__(__name)
 
-# vkId			| nickname		| state		| lastEvent		| registred		| infoInitialized		| userName		| userSurname
 class UsersDB(object):
 	def __init__(self, db: Database, api) -> None:
 		self.db = db

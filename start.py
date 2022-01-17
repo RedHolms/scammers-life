@@ -1,20 +1,11 @@
 import logging
 import sys
-
-from bot.sql import SQL
+import json
 
 TOKEN = ''
 GROUP_ID = 0
 ADMIN = 0
-
-"""
-int			 nvarchar(32)	 smallint	 bigint			 bit				 bit						 nvarchar(90)	 nvarchar(90) 	; type
-
-UNIQUE																																						; constraints
-NOT NULL
-
-vkId			| nickname		| state		| lastEvent		| registred		| infoInitialized		| userName		| userSurname	; columns
-"""
+IMG_ALBUM = 0
 
 def main():
 	import bot
@@ -23,15 +14,12 @@ def main():
 	
 	log.debug('Reading auth info...')
 	try:
-		with open('AUTH_INFO', 'r') as f:
-			TOKEN = f.readline()
-			GROUP_ID = f.readline()
-			ADMIN = f.readline()
-			if TOKEN.endswith('\n'): TOKEN = TOKEN[:TOKEN.__len__() - 1]
-			if GROUP_ID.endswith('\n'): GROUP_ID = GROUP_ID[:GROUP_ID.__len__() - 1]
-			if ADMIN.endswith('\n'): ADMIN = ADMIN[:ADMIN.__len__() - 1]
-			GROUP_ID = int(GROUP_ID)
-			ADMIN = int(ADMIN)
+		with open('AUTH_INFO.json', 'r', encoding='utf-8') as f:
+			auth = json.load(f)
+			TOKEN = auth['token']
+			GROUP_ID = auth['group_id']
+			ADMIN = auth['admin']
+			IMG_ALBUM = auth['img_album']
 			f.close()
 	except FileNotFoundError:
 		log.error('Auth info not found')
@@ -43,7 +31,7 @@ def main():
 	SQLfield = bot.sql.SQLfield
 	db = bot.sql.SQL('SCAM_LIFE.sqlite', [
 		SQLfield('id', 'bigint', ['UNIQUE', 'NOT NULL']),
-		SQLfield('nickname', 'nvarchar(32)'),
+		SQLfield('nickname', 'nvarchar(20)'),
 		SQLfield('state', 'smallint'),
 		SQLfield('lastEvent', 'bigint'),
 		SQLfield('registred', 'bit'),
@@ -53,12 +41,18 @@ def main():
 		SQLfield('money', 'money'),
 		SQLfield('admin', 'bit'),
 		SQLfield('snackbarsInMsg', 'bit'),
-		SQLfield('flags', 'bigint')
+		SQLfield('flags', 'bigint'),
+		SQLfield('euro', 'money'),
+		SQLfield('scam_adName', 'nvarchar(32)'),
+		SQLfield('scam_adDesc', 'nvarchar(92)'),
+		SQLfield('scam_adCreate', 'bigint'),
+		SQLfield('scam_adEnd', 'int'),
+		SQLfield('maxScore2048', 'int')
 	])
 	db.UpdateRow(ADMIN, 'admin', 1)
 
 	log.debug('Starting bot...')
-	_bot = bot.Bot(bot.vk_api.ApiSession(TOKEN), GROUP_ID, db)
+	_bot = bot.Bot(bot.vk_api.ApiSession(TOKEN), GROUP_ID, db, IMG_ALBUM)
 	_bot.Start()
 
 if __name__ == '__main__':

@@ -1,4 +1,6 @@
-AUTH_INFO
+AUTH_INFO.json
 *.log
+
+tests
 
 __pycache__/

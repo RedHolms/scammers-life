@@ -1,23 +1,31 @@
 import logging
-
+from pickletools import read_unicodestring1
 log = logging.getLogger('scamLife.bot')
 
 from . import vk_api
 from .enums import *
 from .keyboard import *
+from .shop import *
+from .games import *
+from .thief_manager import *
+from .items import *
+from .inventory import *
 from .users import User, UsersDB
 from .database import Database
 from .messages import txt
+from .files import FileLoader
 
 import sys
 import time
 import traceback
 import re
+import random
+import math
 
 class _HardStop(Exception): pass
 
 class Bot(object):
-	def __init__(self, apiSession: vk_api.ApiSession, groupID: int, db: Database) -> None:
+	def __init__(self, apiSession: vk_api.ApiSession, groupID: int, db: Database, img_album: int) -> None:
 		self.api = apiSession
 		self.group_id = groupID
 
@@ -29,6 +37,9 @@ class Bot(object):
 		self.users = UsersDB(self.dbRaw, self.api)
 
 		self.secret = time.time()
+
+		self.img_album = img_album
+		self.fl = FileLoader(self.api, self.group_id, img_album)
 
 		self.started = False
 	
@@ -89,12 +100,28 @@ class Bot(object):
 		self._cycle_start()
 
 	def _check_users(self):
+		for k, usr in self.usersCached.items():
+			usr: User
+			if usr.flags & UserFlag.ScamWaiting:
+				if (usr.scam_adCreate + usr.scam_adEnd) <= time.time():
+					usr.info['flags'] = usr.info['flags'] & (~UserFlag.ScamWaiting)
+					random.seed(time.time())
+					c = round(random.random() * 5 + 5)
+					usr.SendMessage(message=f'✅ поздавляю! вы заскамили мамонта на авито! на сбер было зачисленно {c} рублей')
+					usr.info['money'] += c
+
 		usersToDel = []
 		for k, usr in self.usersCached.items():
 			usr: User
 			log.debug('checking usr <' + str(usr.id) + '> for event. Last event: ' + str(time.time() - usr.lastEvent))
 
-			if (time.time() - usr.lastEvent) > 600:
+			if (time.time() - usr.lastEvent) > 600 and not (usr.flags & UserFlag.ScamWaiting):
+				if usr.flags & UserFlag.Gaming:
+					usr.SendMessage(message='игра была завершена из-за бездействия(награды не будет)')
+					usr.game2048 = None
+					usr.info['state'] = UserState.InGames
+					self.ShowGames(usr)
+
 				self.users.RemoveUserByID(usr.id)
 				self.users.NewUser(usr)
 				usersToDel.append(k)
@@ -120,7 +147,10 @@ class Bot(object):
 					getattr(self, hName)(eventObj)
 			except vk_api.InvalidVkApiResponse as e:
 				log.warning('Invalid vk_api response while handling event <' + str(event['type'] + '>'))
-				log.warning('Response: ' + str(e.response))
+				f_tb = ''
+				for line in traceback.format_exception(*sys.exc_info()):
+					f_tb = f_tb + line
+				log.warning(f_tb)
 				log.info('Event was skipped')
 				continue
 			except:
@@ -138,6 +168,7 @@ class Bot(object):
 	# Используйте User api
 	def _event_Message_New(self, obj: dict):
 		sender = obj['message']['from_id']
+		if obj['message']['peer_id'] >= 2000000000: return
 		self.CallEventHandler('Message_New', obj, sender)
 	
 	def _event_CallbackButton_Press(self, obj: dict):
@@ -175,6 +206,15 @@ class Bot(object):
 			except vk_api.InvalidVkApiResponse as e:
 				log.error('Failed initializing info abour user <' + str(sender) + '>')
 				log.error('API Response: ' + str(e.response))
+
+		if usr.state == UserState.Idle:
+			if usr.registred:
+				usr.SendMessage(message=txt('ERROR_RET_TO_MENU'))
+				usr.info['state'] = UserState.InMenu
+			else: 
+				usr.SendMessage(message=txt('ENTER_NICKNAME'))
+				usr.info['state'] = UserState.WaitForNickname
+			return
 
 		usr.info['lastEvent'] = time.time()
 		hName = 'EventHandler_' + str(name)
@@ -255,13 +295,149 @@ class Bot(object):
 		usr.SendMessage(message='настройъочки',
 		keyboard=keyboard(KB_SETTINGS, snackbar_switch=usr.snackbarsInMsg))
 
+	def ShowShop(self, usr: User):
+		_templ = json.dumps({
+			'type': 'carousel',
+			'elements': [
+				{
+					'title': item['name'],
+					'description': str(item['price']) + ' евро',
+					'photo_id': self.fl.LoadImage(item['img']),
+					'action': {"type": "open_photo"},
+					'buttons': [
+						{
+							'action': {
+								'type': 'callback',
+								'label': 'купить',
+								'payload': {
+									'ktype': 'shop',
+									'btype': 'buy',
+									'payload': {
+										'item': item['item']
+									}
+								}
+							},
+							'color': 'primary'
+						},
+						{
+							'action': {
+								'type': 'callback',
+								'label': 'подробнее',
+								'payload': {
+									'ktype': 'shop',
+									'btype': 'about',
+									'payload': {
+										'item': item['item']
+									}
+								}
+							},
+							'color': 'primary'
+						}
+					]
+				}
+			for item in SHOP_ITEMS]
+		})
+		usr.SendMessage(message='дарова, тут магаз короче, я не придумал чё еще сюда можно написать так что пускай будет так', keyboard=KB_SHOP)
+		usr.SendMessage(template=_templ, message='вещъчьки')
+	
+	def ShowVipshop(self, usr: User):
+		usr.SendMessage(message='в сбере можно обменять евро на рубли, тут у нас не россия, поэтому курс 1 евро = 10 рублей.\nвведите кол-во евро, сколько хочешь обменять:', keyboard=KB_VIPSHOP)
+	
+	def ShowDonate(self, usr: User):
+		usr.SendMessage(message='донатек', keyboard=KB_DONATE)
+
+	def ShowWorksList(self, usr: User):
+		usr.SendMessage(message="вот список работ, завода не будет, там только твой батя", keyboard=KB_WORKSLIST)
+
+	def ShowWorkMenu_Scam(self, usr: User):
+		usr.SendMessage(message="решил поскамить мамонтов на авито? отлично, размещай объявление и мамонты сами прибегут!", keyboard=KB_WORKMENU_SCAM)
+
+	def ShowWorkMenu_Fishing(self, usr: User):
+		usr.SendMessage(message=".")
+	
+	def ShowWorkMenu_Thief(self, usr: User):
+		_templ = json.dumps({
+			'type': 'carousel',
+			'elements': [
+				{
+					'title': item['name'],
+					'description': 'Сложность: ' + str(item['difficult_rus']),
+					'photo_id': self.fl.LoadImage(item['thumbnail']),
+					'action': {"type": "open_photo"},
+					'buttons': [
+						{
+							'action': {
+								'type': 'callback',
+								'label': 'купить',
+								'payload': {
+									'ktype': 'thief_с',
+									'btype': 'start',
+									'payload': {
+										'id': item['id']
+									}
+								}
+							},
+							'color': 'primary'
+						},
+						{
+							'action': {
+								'type': 'callback',
+								'label': 'возможный дроп',
+								'payload': {
+									'ktype': 'thief_с',
+									'btype': 'drop',
+									'payload': {
+										'id': item['id'],
+										'drop': item['drop'],
+										'house_name': item['name']
+									}
+								}
+							},
+							'color': 'primary'
+						}
+					]
+				}
+			for item in RandomThiefHouses()]
+		})
+		usr.SendMessage(message='решил грабануть кого-то значит. учти, если тебя поймают за жопу - в тюрьму, либо штраф', keyboard=KB_WORKMENU_THIEF)
+		usr.SendMessage(message='выбирай, какой дом пойдёшь грабить', template=_templ)
+
+	def ShowCasino(self, usr: User):
+		usr.SendMessage(message='тут казиныч', keyboard=KB_CASINO)
+
+	def ShowGames(self, usr: User):
+		usr.SendMessage(message='тут игры где ты можешь заработать', keyboard=KB_GAMES)
+
+	def ShowGameMenu_2048(self, usr: User):
+		usr.SendMessage(message=f'игра тупа 2048. твой рекорд {usr.maxScore2048} очков', keyboard=KB_GAMEMENU_2048)
+
 	
 	def ShowMenuByState(self, usr: User):
 		s = usr.state
 		if s == UserState.InMenu:
 			self.ShowMainMenu(usr)
 		elif s == UserState.InSettings:
-			self.ShowMainMenu(usr)
+			self.ShowSettings(usr)
+		elif s == UserState.InShop:
+			self.ShowShop(usr)
+		elif s == UserState.InVipshop:
+			self.ShowVipshop(usr)
+		elif s == UserState.InDonate:
+			self.ShowDonate(usr)
+		elif s == UserState.InWorksList:
+			self.ShowWorksList(usr)
+		elif s == UserState.InWorkMenu_Fishing:
+			self.ShowWorkMenu_Fishing(usr)
+		elif s == UserState.InWorkMenu_Scam:
+			self.ShowWorkMenu_Scam(usr)
+		elif s == UserState.InWorkMenu_Thief:
+			self.ShowWorkMenu_Thief(usr)
+		elif s == UserState.InCasino:
+			self.ShowCasino(usr)
+		elif s == UserState.InGames:
+			self.ShowGames(usr)
+		elif s == UserState.InGameMenu_2048:
+			self.ShowGameMenu_2048(usr)
 		else:
 			return False
 		return True
@@ -282,19 +458,15 @@ class Bot(object):
 			text = text[1:]
 			return self.ProcessAdminCMD(text, usr)
 		
-		if usr.state == UserState.Idle:
-			if usr.registred:
-				usr.SendMessage(message=txt('ERROR_RET_TO_MENU'))
-				usr.info['state'] = UserState.InMenu
-			else: 
-				usr.SendMessage(message=txt('ENTER_NICKNAME'))
-				usr.info['state'] = UserState.WaitForNickname
-			return
 		elif usr.state == UserState.WaitForNickname:
+			if text.__len__() > 20:
+				usr.SendMessage('ты чо, такое хер запомнишь, не больше 20 букав')
+				return
 			usr.info['nickname'] = text
 			usr.SendMessage(message=txt('YOUR_NICKNAME_NOW', nickname=text))
 			usr.info['registred'] = True
 			usr.info['state'] = UserState.InMenu
+			self.ShowMainMenu(usr)
 			return
 
 		if not usr.registred:
@@ -314,9 +486,60 @@ class Bot(object):
 		if usr.state == UserState.InMenu:
 			self.ShowMainMenu(usr, annStart='Используй кнопки >:(')
 			return
+		elif usr.state == UserState.InVipshop:
+			try:
+				c = int(text)
+			except:
+				usr.SendMessage(message='это не число, что бы вернуться используй кнопки, если кнопки пропали введи !обновить')
+			else:
+				if c < 0:
+					usr.SendMessage(message='в долг не даём')
+					return
+				if usr.euro < c:
+					usr.SendMessage(message='у тебя нету столько, у тебя ' + str(usr.euro))
+					return
+				usr.info['euro'] -= c
+				usr.info['money'] += c * 10
+				usr.SendMessage(message=f'✅ вам было зачисленно {c * 10} рублей, у вас осталось {usr.euro} евро')
+				self.ShowVipshop(usr)
+			return
+		elif usr.state == UserState.Scam_WaitForAdName:
+			if text == '!назад':
+				usr.info['state'] = UserState.InMenu
+				self.ShowMainMenu(usr)
+				return
+			
+			if text.__len__() > 32:
+				usr.SendMessage(message='слишком длинное, не больше 32 букав')
+				return
+			usr.info['scam_adName'] = text
+			usr.info['state'] = UserState.Scam_WaitForAdDesc
+			usr.SendMessage(message='теперь описание')
+			return
+		elif usr.state == UserState.Scam_WaitForAdDesc:
+			if text == '!назад':
+				usr.info['state'] = UserState.InMenu
+				self.ShowMainMenu(usr)
+				return
+
+			if text.__len__() > 92:
+				usr.SendMessage(message='слишком длинное, не больше 92 букав')
+				return
+			usr.info['scam_adName'] = text
+			usr.info['state'] = UserState.InWorkMenu_Scam
+			usr.info['flags'] = usr.info['flags'] | UserFlag.ScamWaiting
+			usr.info['scam_adCreate'] = time.time()
+			random.seed(time.time())
+			usr.info['scam_adEnd'] = ((random.random() * 1800) + 1800)
+			usr.SendMessage(message='объявление было размещено, жди, пока какой-нибудь мамонт заскамится')
+			self.ShowWorkMenu_Scam(usr)
+			return
 		usr.SendMessage(message='Используй кнопки! Если кнопки пропали, используй !обновить')
 	
 	def EventHandler_CallbackButton_Press(self, obj: dict, usr: User):
+		if not usr.registred:
+			return
+
 		def SendEmptyAnswer():
 			self.api.executeMethod('messages.sendMessageEventAnswer', {
 				'event_id': obj['event_id'],
@@ -350,9 +573,22 @@ class Bot(object):
 			return
 		ktype = payload['ktype']
 		btype = payload['btype']
+		payload = payload['payload']
 		
 		if btype == 'dummy':
 			return SendSnackbar('Dummy Received in "' + str(ktype) + '"')
+		if btype == 'return':
+			if 'retTo' not in payload:
+				SendEmptyAnswer()
+				usr.info['state'] = UserState.InMenu
+				self.ShowMainMenu(usr)
+				return
+			else:
+				rt = payload['retTo']
+				SendEmptyAnswer()
+				usr.info['state'] = getattr(UserState, 'In' + str(rt))
+				getattr(self, 'Show' + str(rt))(usr)
+				return
 		
 		if ktype == 'main_menu':
 			if btype == 'reload':
@@ -362,6 +598,32 @@ class Bot(object):
 				SendEmptyAnswer()
 				usr.info['state'] = UserState.InSettings
 				self.ShowSettings(usr)
+			elif btype == 'shop':
+				SendEmptyAnswer()
+				usr.info['state'] = UserState.InShop
+				self.ShowShop(usr)
+			elif btype == 'vipshop':
+				SendEmptyAnswer()
+				usr.info['state'] = UserState.InVipshop
+				self.ShowVipshop(usr)
+			elif btype == 'donate':
+				SendEmptyAnswer()
+				usr.info['state'] = UserState.InDonate
+				self.ShowDonate(usr)
+			elif btype == 'works':
+				SendEmptyAnswer()
+				usr.info['state'] = UserState.InWorksList
+				self.ShowWorksList(usr)
+			elif btype == 'casino':
+				SendEmptyAnswer()
+				usr.info['state'] = UserState.InCasino
+				self.ShowCasino(usr)
+			elif btype == 'games':
+				SendEmptyAnswer()
+				usr.info['state'] = UserState.InGames
+				self.ShowGames(usr)
+		
+
 		elif ktype == 'settings':
 			if btype == 'reload':
 				SendEmptyAnswer()
@@ -369,8 +631,123 @@ class Bot(object):
 			elif btype == 'snackbar_switch':
 				usr.info['snackbarsInMsg'] = not usr.info['snackbarsInMsg']
 				SendSnackbar('Уведомления в сообщениях ' + ('включены' if usr.snackbarsInMsg else 'выключены'))
-				self.ShowSettings()
-			elif btype == 'return':
+				self.ShowSettings(usr)
+		
+
+		elif ktype == 'shop':
+			if btype == 'bank':
 				SendEmptyAnswer()
+				usr.info['state'] = UserState.InVipshop
+				self.ShowVipshop(usr)
+		
+
+		elif ktype == 'donate':
+			SendEmptyAnswer()
+
+
+		elif ktype == 'vipshop':
+			if btype == 'donate':
+				SendEmptyAnswer()
+				usr.info['state'] = UserState.InDonate
+				self.ShowDonate(usr)
+
+		
+		elif ktype == 'workslist':
+			if btype == 'work_scamavito':
+				SendEmptyAnswer()
+				usr.info['state'] = UserState.InWorkMenu_Scam
+				self.ShowWorkMenu_Scam(usr)
+			elif btype == 'work_fishing':
+				SendEmptyAnswer()
+				usr.info['state'] = UserState.InWorkMenu_Fishing
+				self.ShowWorkMenu_Fishing(usr)
+			elif btype == 'thief':
+				SendEmptyAnswer()
+				usr.info['state'] = UserState.InWorkMenu_Thief
+				self.ShowWorkMenu_Thief(usr)
+
+		
+		elif ktype == 'casino':
+			if btype == 'onehandbandit':
+				SendEmptyAnswer()
+		
+		
+		elif ktype == 'games':
+			if btype == '2048':
+				SendEmptyAnswer()
+				usr.info['state'] = UserState.InGameMenu_2048
+				self.ShowGameMenu_2048(usr)
+
+
+		elif ktype == 'gamemenu_2048':
+			if btype == 'play':
+				SendEmptyAnswer()
+				usr.info['state'] = UserState.Gaming_2048
+				usr.game2048 = Game2048()
+				usr.game2048.Clear()
+				usr.game2048.Random()
+				usr.info['flags'] |= UserFlag.Gaming
+				usr.SendMessage(message=f'игра началась! правила стандарные, обычная игра 2048. каждые 100 очков = 1 рубль. удачи в наборе очкой! :3', keyboard=usr.game2048.FormatKeyboard())
+		
+
+		elif ktype == 'game2048':
+			if usr.game2048 == None:
+				SendSnackbar('ааа чёза ты как тут это да быстра в меню вернулся да(ошибка, трай агаин)')
 				usr.info['state'] = UserState.InMenu
 				self.ShowMainMenu(usr)
+				return
+			
+			if btype == 'block':
+				SendEmptyAnswer()
+			elif btype == 'move':
+				SendEmptyAnswer()
+				moved = usr.game2048.Move(payload['dir'])
+				if moved:
+					usr.game2048.Random()
+					if not usr.game2048.IsMovesAvailable():
+						c = math.floor(usr.game2048.points / 100)
+						usr.SendMessage(message=f'🙁 больше нету доступных ходов, гаме овер! на сбер зачисленно {c} рублей')
+						usr.info['maxScore2048'] = usr.game2048.points
+						usr.info['money'] += c
+						usr.info['state'] = UserState.InGameMenu_2048
+						usr.info['flags'] &= ~UserFlag.Gaming
+						usr.game2048 = None
+						self.ShowGameMenu_2048(usr)
+						return
+					usr.SendMessage(message=f'ты набрал {usr.game2048.points} очков или {math.floor(usr.game2048.points / 100)} рублей', keyboard=usr.game2048.FormatKeyboard())
+			elif btype == 'exit':
+				SendEmptyAnswer()
+				c = math.floor(usr.game2048.points / 100)
+				usr.SendMessage(message=f'на сбер зачисленно {c} рублей')
+				usr.info['maxScore2048'] = usr.game2048.points
+				usr.info['money'] += c
+				usr.info['state'] = UserState.InGameMenu_2048
+				usr.info['flags'] &= ~UserFlag.Gaming
+				usr.game2048 = None
+				self.ShowGameMenu_2048(usr)
+
+		
+		elif ktype == 'workmenu_scam':
+			if btype == 'make_ad':
+				if usr.flags & UserFlag.ScamWaiting:
+					usr.SendMessage(message='ты уже размещал объявление, жди, пока мамонты заскамятся')
+					return
+				SendEmptyAnswer()
+				usr.info['state'] = UserState.Scam_WaitForAdName
+				usr.SendMessage(message='введи название объявы, что бы вернутся напиши !назад', keyboard=KB_WORKMENU_SCAM_R)
+		
+		
+		elif ktype == 'thief_с':
+			if btype == 'start':
+				SendEmptyAnswer()
+			elif btype == 'drop':
+				SendEmptyAnswer()
+				s = 'возможный дроп из "' + str(payload['house_name']) + '":\n\n'
+				for item in payload['drop']:
+					item: Item
+					s += str(item['name']) + '\n'
+				usr.SendMessage(message=s)
+		
+
+		else:
+			log.warning('Callback button in invalid keyboard: ' + str(ktype))

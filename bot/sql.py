@@ -25,7 +25,7 @@ class SQL(Database):
 
 	# Utils
 	def _util_formatSqlVal(self, v: Any) -> str:
-		return (("'" + v + "'") if type(v) == str else str(v))
+		return (("'" + v + "'") if type(v) == str else str(int(v)) if type(v) == int else str(v))
 
 	def _util_unpackToStr(self, lst: list, formatStrings: bool = True, removeComma: bool = False):
 		retS = ""
@@ -44,6 +44,8 @@ class SQL(Database):
 		i = 0
 		dct = {}
 		for v in sqlRes:
+			_v = self.rows[i]
+			if _v.type == 'bit': v = bool(v)
 			dct[self.rows[i].name] = v
 			i += 1
 		return dct

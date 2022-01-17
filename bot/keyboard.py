@@ -10,10 +10,24 @@ KB_MENU = json.dumps({
                "type":"callback",
                "payload": {
 						'ktype': 'main_menu',
-						'btype': 'reload',
+						'btype': 'works',
 						'payload': {}
 					},
-               "label":"поломалося("
+               "label":"💼 работы"
+            },
+            "color":"secondary"
+			}
+		],
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'main_menu',
+						'btype': 'casino',
+						'payload': {}
+					},
+               "label":"🎲 казик"
             },
             "color":"secondary"
 			},
@@ -22,10 +36,10 @@ KB_MENU = json.dumps({
                "type":"callback",
                "payload": {
 						'ktype': 'main_menu',
-						'btype': 'dummy',
+						'btype': 'games',
 						'payload': {}
 					},
-               "label":"DUMMY"
+               "label":"🕹 игры"
             },
             "color":"secondary"
 			}
@@ -36,26 +50,36 @@ KB_MENU = json.dumps({
                "type":"callback",
                "payload": {
 						'ktype': 'main_menu',
-						'btype': 'dummy',
+						'btype': 'shop',
 						'payload': {}
 					},
-               "label":"DUMMY"
+               "label":"🏪 магаз"
             },
             "color":"secondary"
-			}
-		],
-		[
+			},
 			{
-            "action":{  
+            "action":{
                "type":"callback",
                "payload": {
 						'ktype': 'main_menu',
-						'btype': 'dummy',
+						'btype': 'vipshop',
 						'payload': {}
 					},
-               "label":"DUMMY"
+               "label":"🏛 банк"
             },
             "color":"secondary"
+			},
+			{
+            "action":{
+               "type":"callback",
+               "payload": {
+						'ktype': 'main_menu',
+						'btype': 'donate',
+						'payload': {}
+					},
+               "label":"💸 донат"
+            },
+            "color":"positive"
 			}
 		],
 		[
@@ -68,6 +92,18 @@ KB_MENU = json.dumps({
 						'payload': {}
 					},
                "label":"⚙ настроечьки"
+            },
+            "color":"secondary"
+			},
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'main_menu',
+						'btype': 'reload',
+						'payload': {}
+					},
+               "label":"поломалося("
             },
             "color":"secondary"
 			}
@@ -121,6 +157,394 @@ KB_SETTINGS = json.dumps({
 		]
 	]
 })
+
+KB_SHOP = json.dumps({
+	"one_time": False,
+	"inline": False,
+	"buttons": [
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'shop',
+						'btype': 'dummy',
+						'payload': {}
+					},
+               "label":"*"
+            },
+            "color":"positive"
+			}
+		],
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'shop',
+						'btype': 'return',
+						'payload': {}
+					},
+               "label":"назад"
+            },
+            "color":"secondary"
+			}
+		]
+	]
+})
+
+KB_VIPSHOP = json.dumps({
+	"one_time": False,
+	"inline": False,
+	"buttons": [
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'vipshop',
+						'btype': 'donate',
+						'payload': {}
+					},
+               "label":"пополнить"
+            },
+            "color":"positive"
+			}
+		],
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'vipshop',
+						'btype': 'return',
+						'payload': {}
+					},
+               "label":"назад"
+            },
+            "color":"secondary"
+			}
+		]
+	]
+})
+
+KB_SHOP = json.dumps({
+	"one_time": False,
+	"inline": False,
+	"buttons": [
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'shop',
+						'btype': 'bank',
+						'payload': {}
+					},
+               "label":"в банк!"
+            },
+            "color":"positive"
+			}
+		],
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'shop',
+						'btype': 'return',
+						'payload': {}
+					},
+               "label":"назад"
+            },
+            "color":"secondary"
+			}
+		]
+	]
+})
+
+KB_WORKSLIST = json.dumps({
+	"one_time": False,
+	"inline": False,
+	"buttons": [
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'workslist',
+						'btype': 'work_scamavito',
+						'payload': {}
+					},
+               "label":"скам на авито"
+            },
+            "color":"secondary"
+			},
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'workslist',
+						'btype': 'work_fishing',
+						'payload': {}
+					},
+               "label":"фишинг сайтов"
+            },
+            "color":"secondary"
+			},
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'workslist',
+						'btype': 'thief',
+						'payload': {}
+					},
+               "label":"воръ"
+            },
+            "color":"secondary"
+			}
+		],
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'workslist',
+						'btype': 'return',
+						'payload': {}
+					},
+               "label":"назад"
+            },
+            "color":"secondary"
+			}
+		]
+	]
+})
+
+KB_CASINO = json.dumps({
+	"one_time": False,
+	"inline": False,
+	"buttons": [
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'casino',
+						'btype': 'onehandbandit',
+						'payload': {}
+					},
+               "label":"однорукий бандит"
+            },
+            "color":"secondary"
+			}
+		],
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'casino',
+						'btype': 'return',
+						'payload': {}
+					},
+               "label":"назад"
+            },
+            "color":"secondary"
+			}
+		]
+	]
+})
+
+KB_GAMES = json.dumps({
+	"one_time": False,
+	"inline": False,
+	"buttons": [
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'games',
+						'btype': '2048',
+						'payload': {}
+					},
+               "label":"2048"
+            },
+            "color":"secondary"
+			}
+		],
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'games',
+						'btype': 'return',
+						'payload': {}
+					},
+               "label":"назад"
+            },
+            "color":"secondary"
+			}
+		]
+	]
+})
+
+KB_GAMEMENU_2048 = json.dumps({
+	"one_time": False,
+	"inline": False,
+	"buttons": [
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'gamemenu_2048',
+						'btype': 'play',
+						'payload': {}
+					},
+               "label":"играть"
+            },
+            "color":"positive"
+			}
+		],
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'gamemenu_2048',
+						'btype': 'return',
+						'payload': {}
+					},
+               "label":"назад"
+            },
+            "color":"secondary"
+			}
+		]
+	]
+})
+
+KB_DONATE = json.dumps({
+	"one_time": False,
+	"inline": False,
+	"buttons": [
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'donate',
+						'btype': 'dummy',
+						'payload': {}
+					},
+               "label":"*"
+            },
+            "color":"positive"
+			}
+		],
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'donate',
+						'btype': 'return',
+						'payload': {}
+					},
+               "label":"назад"
+            },
+            "color":"secondary"
+			}
+		]
+	]
+})
+
+KB_WORKMENU_SCAM = json.dumps({
+	"one_time": False,
+	"inline": False,
+	"buttons": [
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'workmenu_scam',
+						'btype': 'make_ad',
+						'payload': {}
+					},
+               "label":"разместить объявление"
+            },
+            "color":"positive"
+			}
+		],
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'workmenu_scam',
+						'btype': 'return',
+						'payload': {
+							'retTo': 'WorksList'
+						}
+					},
+               "label":"назад"
+            },
+            "color":"secondary"
+			}
+		]
+	]
+})
+
+KB_WORKMENU_SCAM_R = json.dumps({
+	"one_time": False,
+	"inline": False,
+	"buttons": [
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'workmenu_scam',
+						'btype': 'return',
+						'payload': {
+							'retTo': 'WorksList'
+						}
+					},
+               "label":"назад"
+            },
+            "color":"secondary"
+			}
+		]
+	]
+})
+
+KB_WORKMENU_THIEF = json.dumps({
+	"one_time": False,
+	"inline": False,
+	"buttons": [
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'workmenu_thief',
+						'btype': 'return',
+						'payload': {
+							'retTo': 'WorksList'
+						}
+					},
+               "label":"назад"
+            },
+            "color":"secondary"
+			}
+		]
+	]
+})
+
 
 def keyboard(kb: str, **kwargs):
 	_kb = json.loads(kb)
