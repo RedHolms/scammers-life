@@ -101,5 +101,9 @@ class SQL(Database):
 		self.cur.execute(f'SELECT * FROM {target_table}')
 		return self.cur.fetchall()
 	
+	def Execute(self, code: str) -> list:
+		self.cur.execute(code)
+		return self.cur.fetchall()
+	
 	def Close(self):
 		self.conn.close()

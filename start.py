@@ -47,7 +47,8 @@ def main():
 		SQLfield('scam_adDesc', 'nvarchar(92)'),
 		SQLfield('scam_adCreate', 'bigint'),
 		SQLfield('scam_adEnd', 'int'),
-		SQLfield('maxScore2048', 'int')
+		SQLfield('maxScore2048', 'int'),
+		SQLfield('promo', 'nvarchar(12)')
 	])
 	db.UpdateRow(ADMIN, 'admin', 1)
 

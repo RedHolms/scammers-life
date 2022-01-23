@@ -100,6 +100,18 @@ KB_MENU = json.dumps({
                "type":"callback",
                "payload": {
 						'ktype': 'main_menu',
+						'btype': 'promos',
+						'payload': {}
+					},
+               "label":"🎟 промокоды"
+            },
+            "color":"positive"
+			},
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'main_menu',
 						'btype': 'reload',
 						'payload': {}
 					},
@@ -545,6 +557,166 @@ KB_WORKMENU_THIEF = json.dumps({
 	]
 })
 
+KB_PROMOS = json.dumps({
+	"one_time": False,
+	"inline": False,
+	"buttons": [
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'promos',
+						'btype': 'create',
+						'payload': {}
+					},
+               "label":"создать промокод"
+            },
+            "color":"positive"
+			}
+		],
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'promos',
+						'btype': 'return',
+						'payload': {}
+					},
+               "label":"назад"
+            },
+            "color":"secondary"
+			}
+		]
+	]
+})
+
+KB_PROMOS_H = json.dumps({
+	"one_time": False,
+	"inline": False,
+	"buttons": [
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'promos',
+						'btype': 'manage',
+						'payload': {}
+					},
+               "label":"управление промокодом"
+            },
+            "color":"positive"
+			}
+		],
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'promos',
+						'btype': 'return',
+						'payload': {}
+					},
+               "label":"назад"
+            },
+            "color":"secondary"
+			}
+		]
+	]
+})
+
+KBU_RETURN = json.dumps({
+	"one_time": False,
+	"inline": False,
+	"buttons": [
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'UNIVERSAL',
+						'btype': 'return',
+						'payload': {}
+					},
+               "label":"назад"
+            },
+            "color":"secondary"
+			}
+		]
+	]
+})
+
+KBU_PLACEHOLDER = json.dumps({
+	"one_time": False,
+	"inline": False,
+	"buttons": [
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'UNIVERSAL',
+						'btype': 'dummy',
+						'payload': {}
+					},
+               "label":"*"
+            },
+            "color":"primary"
+			}
+		],
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'UNIVERSAL',
+						'btype': 'return',
+						'payload': {}
+					},
+               "label":"назад"
+            },
+            "color":"secondary"
+			}
+		]
+	]
+})
+
+KBU_CONFIRM = json.dumps({
+	"one_time": False,
+	"inline": False,
+	"buttons": [
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'UNIVERSAL',
+						'btype': 'confirm',
+						'payload': {}
+					},
+               "label":"подтвердить"
+            },
+            "color":"positive"
+			}
+		],
+		[
+			{
+            "action":{  
+               "type":"callback",
+               "payload": {
+						'ktype': 'UNIVERSAL',
+						'btype': 'decline',
+						'payload': {}
+					},
+               "label":"отменить"
+            },
+            "color":"negative"
+			}
+		]
+	]
+})
 
 def keyboard(kb: str, **kwargs):
 	_kb = json.loads(kb)
@@ -556,6 +728,10 @@ def keyboard(kb: str, **kwargs):
 				if btn['action']['payload']['btype'] == name:
 					if type(arg) == bool:
 						_kb['buttons'][lineI][btnI]['color'] = 'positive' if arg else 'negative'
+					elif type(arg) == str:
+						_kb['buttons'][lineI][btnI]['label'] = arg
+					elif type(arg) == dict:
+						_kb['buttons'][lineI][btnI]['action']['payload']['payload'] = arg
 			btnI += 1
 		lineI += 1
 	return json.dumps(_kb)

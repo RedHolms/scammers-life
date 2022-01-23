@@ -1,5 +1,4 @@
 import logging
-from pickletools import read_unicodestring1
 log = logging.getLogger('scamLife.bot')
 
 from . import vk_api
@@ -9,7 +8,7 @@ from .shop import *
 from .games import *
 from .thief_manager import *
 from .items import *
-from .inventory import *
+from .promo import *
 from .users import User, UsersDB
 from .database import Database
 from .messages import txt
@@ -39,9 +38,21 @@ class Bot(object):
 		self.secret = time.time()
 
 		self.img_album = img_album
+		
 		self.fl = FileLoader(self.api, self.group_id, img_album)
+		self.pm = PromoManager(self)
 
 		self.started = False
+
+	def CacheUser(self, id: int) -> User | None:
+		if id not in self.usersCached:
+			usr = self.users.GetUserByVkID(id)
+			if usr == None:
+				return None
+			else:
+				log.info('Caching user <' + str(id) + '>...')
+				self.usersCached[id] = usr
+		return self.usersCached[id]
 	
 	def Start(self):
 		log.debug('Starting...')
@@ -120,6 +131,7 @@ class Bot(object):
 					usr.SendMessage(message='игра была завершена из-за бездействия(награды не будет)')
 					usr.game2048 = None
 					usr.info['state'] = UserState.InGames
+					usr.info['flags'] &= ~UserFlag.Gaming
 					self.ShowGames(usr)
 
 				self.users.RemoveUserByID(usr.id)
@@ -273,14 +285,21 @@ class Bot(object):
 			log.info('Uncaching user <' + str(id) + '>...')
 			del self.usersCached[id]
 			usr.SendMessage(message='+')
+		elif re.match(r'invadd .+', text) != None:
+			m = re.match(r'invadd (.+)', text)
+			item = m.group(1)
+			usr.inventory.append(Item(item, GetItemName(item)))
 		elif re.match(r'botstop.*', text) != None:
 			if re.match(r'botstop ' + str(self.secret), text) != None:
 				usr.SendMessage(message='stopping...')
 				self.Stop()
-				return
 			else:
 				usr.SendMessage(message=str(self.secret))
-				return
+			return
+		elif re.match(r'money \d+', text) != None:
+			m = re.match(r'money (\d+)', text)
+			money = m.group(1)
+			usr.info['money'] += int(money)
 		else:
 			usr.SendMessage(message='invalid command')
 	
@@ -368,7 +387,7 @@ class Bot(object):
 						{
 							'action': {
 								'type': 'callback',
-								'label': 'купить',
+								'label': 'грабануть',
 								'payload': {
 									'ktype': 'thief_с',
 									'btype': 'start',
@@ -410,6 +429,9 @@ class Bot(object):
 
 	def ShowGameMenu_2048(self, usr: User):
 		usr.SendMessage(message=f'игра тупа 2048. твой рекорд {usr.maxScore2048} очков', keyboard=KB_GAMEMENU_2048)
+	
+	def ShowPromos(self, usr: User):
+		usr.SendMessage(message='введи промокод', keyboard=(KB_PROMOS_H if self.pm.IsUserHasPromo() != None else KB_PROMOS))
 
 	
 	def ShowMenuByState(self, usr: User):
@@ -438,6 +460,8 @@ class Bot(object):
 			self.ShowGames(usr)
 		elif s == UserState.InGameMenu_2048:
 			self.ShowGameMenu_2048(usr)
+		elif s == UserState.InPromos:
+			self.ShowPromos(usr)
 		else:
 			return False
 		return True
@@ -451,6 +475,7 @@ class Bot(object):
 		usr.SendMessage(message="registred. id=" + str(usr.id))
 	
 	#### Longpoll Handlers ###
+	##########################
 	def EventHandler_Message_New(self, obj: dict, usr: User):
 		text: str = obj['message']['text']
 
@@ -481,6 +506,15 @@ class Bot(object):
 			updated = self.ShowMenuByState(usr)
 			if not updated:
 				usr.SendMessage(message='нечего обновлять(')
+			return
+		elif text == 'инвентарь':
+			if usr.inventory.__len__() == 0:
+				msg = 'ты бомж у тебя ничего нету'
+			else:
+				msg = 'твой инвентарь:\n\n'
+				for item in usr.inventory:
+					msg += item['name'] + '\n'
+			usr.SendMessage(message=msg)
 			return
 		
 		if usr.state == UserState.InMenu:
@@ -534,6 +568,31 @@ class Bot(object):
 			usr.SendMessage(message='объявление было размещено, жди, пока какой-нибудь мамонт заскамится')
 			self.ShowWorkMenu_Scam(usr)
 			return
+		elif usr.state == UserState.InPromos:
+			if text in usr.lists['promosEntered']:
+				usr.SendMessage(message='ты уже вводил этот промик')
+				return
+			state = self.pm.ActivatePromo(text, usr)
+			if state == 1:
+				usr.SendMessage(message='ошибка, промокод уже недействителен, или не существует')
+			elif state == 2:
+				usr.SendMessage(message='ты не можешь ввести свой же промик')
+			elif state != 0:
+				usr.SendMessage(message='ошибка при вводе промика, обратись в поддержку. код ошибки: ' + str(state))
+			return
+		elif usr.state == UserState.WaitForPromo:
+			if usr.money < 10000:
+				usr.SendMessage(message='у тебя недостаточно рублей. для создания промика надо 10к рублей')
+				return
+			state = self.pm.IsPromoCodeValid(text)
+			if state == 0:
+				usr.SendMessage(message=f'ты точно хочешь сделать промо "{text}"? ты потратишь 10к', keyboard=keyboard(KBU_CONFIRM, confirm={'promo': text}))
+				usr.info['state'] = UserState.PromoConfirm
+			elif state == 1:
+				usr.SendMessage(message='такой промик уже занят')
+			elif state == 2:
+				usr.SendMessage(message='промик слишком длинный/короткий')
+			return
 		usr.SendMessage(message='Используй кнопки! Если кнопки пропали, используй !обновить')
 	
 	def EventHandler_CallbackButton_Press(self, obj: dict, usr: User):
@@ -577,18 +636,30 @@ class Bot(object):
 		
 		if btype == 'dummy':
 			return SendSnackbar('Dummy Received in "' + str(ktype) + '"')
-		if btype == 'return':
+		elif btype == 'return':
 			if 'retTo' not in payload:
 				SendEmptyAnswer()
 				usr.info['state'] = UserState.InMenu
 				self.ShowMainMenu(usr)
-				return
 			else:
 				rt = payload['retTo']
 				SendEmptyAnswer()
 				usr.info['state'] = getattr(UserState, 'In' + str(rt))
 				getattr(self, 'Show' + str(rt))(usr)
-				return
+			return
+		elif btype == 'confirm':
+			if usr.state == UserState.PromoConfirm:
+				promo = payload['promo']
+				usr.info['money'] -= 10000
+				self.pm.NewPromo(promo, usr)
+				self.pm.SavePromos()
+				usr.info['state'] = UserState.InMenu
+				self.ShowMainMenu(usr, annStart=f'теперь у тебя есть промик "{promo}"')
+			return
+		elif btype == 'decline':
+			usr.info['state'] = UserState.InMenu
+			self.ShowMainMenu(usr)
+			return
 		
 		if ktype == 'main_menu':
 			if btype == 'reload':
@@ -622,7 +693,10 @@ class Bot(object):
 				SendEmptyAnswer()
 				usr.info['state'] = UserState.InGames
 				self.ShowGames(usr)
-		
+			elif btype == 'promos':
+				SendEmptyAnswer()
+				usr.info['state'] = UserState.InPromos
+				self.ShowPromos(usr)
 
 		elif ktype == 'settings':
 			if btype == 'reload':
@@ -740,6 +814,7 @@ class Bot(object):
 		elif ktype == 'thief_с':
 			if btype == 'start':
 				SendEmptyAnswer()
+				id = payload['start']
 			elif btype == 'drop':
 				SendEmptyAnswer()
 				s = 'возможный дроп из "' + str(payload['house_name']) + '":\n\n'
@@ -748,6 +823,19 @@ class Bot(object):
 					s += str(item['name']) + '\n'
 				usr.SendMessage(message=s)
 		
+
+		elif ktype == 'promos':
+			if btype == 'create':
+				SendEmptyAnswer()
+				usr.SendMessage(message=f'для создания промокода нужно 10000 рублеков. если ты готов, введи промокод\n\nна первом уровне промокод будет давать {PROMO_LVLS[1][0]} тому, кто ввёл, и {PROMO_LVLS[1][1]} владельцу(тебе)', keyboard=keyboard(KBU_RETURN, kwargs={'return': {'retTo': 'Promos'}}))
+				usr.info['state'] = UserState.WaitForPromo
+			elif btype == 'manage':
+				SendEmptyAnswer()
+				if not self.pm.IsUserHasPromo(usr.id):
+					usr.SendMessage(message=f'ошибка, у тебя нету промика')
+					self.ShowPromos(usr)
+					return
+				
 
 		else:
 			log.warning('Callback button in invalid keyboard: ' + str(ktype))

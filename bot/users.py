@@ -1,4 +1,5 @@
 from .database import Database, Any
+from .items import *
 
 class User(object):
 	def __init__(self, id: int, api):
@@ -35,8 +36,13 @@ class User(object):
 			'scam_adCreate': '',
 			'scam_adEnd': '',
 
-			'maxScore2048': 0
+			'maxScore2048': 0,
+
+			'promo': ''
 		}
+
+		self.inventory: list[Item] = []
+		self.lists: dict[str, list] = {}
 
 		def __setattr__(self, __name: str, __value: Any) -> None:
 			if __name in self.info: self.info[__name] = __value
@@ -76,7 +82,14 @@ class UsersDB(object):
 	def GetUserByID(self, id: int) -> None | User:
 		r = self.db.GetRow(id)
 		if r == None: return None
-		return self._util_CreateUserFromDict(r)
+		usr = self._util_CreateUserFromDict(r)
+		r = self.db.Execute(f'SELECT * FROM uInventory_{usr.id}')
+		for item in r:
+			usr.inventory.append(Item(item[1], GetItemName(item[1])))
+		r = self.db.Execute(f'SELECT * FROM uLists_{usr.id}')
+		for item in r:
+			usr.lists['promosEntered'][item[0]] = item[1]
+		return usr
 	def GetUserByVkID(self, id: int) -> None | User:
 		return self.GetUserByID(id)
 	def GetUsersByProperty(self, propertyName: str, propertyValue: Any) -> list[User] | None:
@@ -104,3 +117,29 @@ class UsersDB(object):
 	
 	def NewUser(self, usr: User):
 		self.db.InsertRow(*self._utils_dictToSqlPs(usr.info))
+		self.db.Execute(f'''CREATE TABLE IF NOT EXISTS uInventory_{usr.id} (
+			slotId tinyint UNIQUE,
+			itemId nvarchar(42),
+			itemFlags bigint,
+			PRIMARY KEY (slotId)
+		)''')
+		self.db.Execute(f'''CREATE TABLE IF NOT EXISTS uLists_{usr.id} (
+			itemIndex bigint UNIQUE,
+			promosEntered nvarchar(12),
+			PRIMARY KEY (itemIndex)
+		)''')
+		i = 0
+		for item in usr.inventory:
+			item: Item
+			self.db.InsertRow(i, item['id'], 0, target_table=f'uInventory_{usr.id}')
+			i += 1
+		maxI = 0
+		for colName, col in usr.lists.items():
+			i = 0
+			for item in col:
+				if i < maxI:
+					self.db.InsertRow(i, item, cols=['itemIndex', colName], target_table=f'uLists_{usr.id}')
+					maxI = i
+				else:
+					self.db.UpdateRow(i, colName, item, target_table=f'uLists_{usr.id}')
+				i += 1

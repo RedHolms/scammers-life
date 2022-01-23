@@ -129,8 +129,10 @@ class UserState(Enum):
 	InCasinoMenu_OneHandBandit = 16
 	InWorkMenu_Thief = 17
 	Busted = 18
+	InPromos = 19
+	WaitForPromo = 20
+	PromoConfirm = 21
 	
-
 class UserFlag(Enum):
 	SnackbarAsked = 1 << 0
 	ScamWaiting = 1 << 1

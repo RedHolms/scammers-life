@@ -38,3 +38,7 @@ class Database(metaclass=ABCMeta):
 	@abstractmethod
 	def GetAll(self):
 		"""return list of all rows"""
+	
+	@abstractmethod
+	def Execute(self, code: str) -> list:
+		"""execute code"""
